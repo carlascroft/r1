@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=240, initial-scale=1.0, user-scalable=no">
+<title>timer.</title>
+<style>
+/* power grotesk if the woff2s sit in ./fonts/ next to this file; falls back to system sans.
+   (external/CDN fonts are unreliable in the r1 webview — same-origin may work; the fallback keeps it honest) */
+@font-face{font-family:"Power Grotesk";src:url("fonts/PowerGrotesk-Light.woff2") format("woff2");font-weight:300;font-display:swap}
+@font-face{font-family:"Power Grotesk";src:url("fonts/PowerGrotesk-Regular.woff2") format("woff2");font-weight:400;font-display:swap}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#000;width:240px;height:282px;overflow:hidden}
+body{font-family:"Power Grotesk",-apple-system,Helvetica,Arial,sans-serif;color:#2EF0FF;position:relative;
+  -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+#cv{position:absolute;left:0;top:0;width:240px;height:282px;background:#000}
+#foot{position:absolute;left:12px;right:12px;bottom:7px;display:flex;justify-content:space-between;align-items:flex-end;
+  font-size:11px;font-weight:400;line-height:1;pointer-events:none}
+#read{position:absolute;left:0;top:0;right:0;bottom:0;background:#000;display:none;flex-direction:column;
+  justify-content:center;padding:12px;pointer-events:none;z-index:5}
+#readBig{font-size:72px;font-weight:300;line-height:.9;letter-spacing:-.01em}
+#readTxt{font-size:14px;font-weight:300;line-height:1.3;margin-top:8px}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="foot"><span id="capL"></span><span id="capR"></span></div>
+<div id="read"><div id="readBig"></div><div id="readTxt"></div></div>
+
+<script>
+/* ==================================================================
+   timer. — drawn-direction timer for the rabbit r1 (240×282)
+   scroll sets minutes (0 = count up) · tap starts / reads · hold resets
+   deformation is the present; fill is the state; marks outlive the fabric.
+================================================================== */
+'use strict';
+var CYAN='#2EF0FF', LIME='#D6FF2E', INK='#000';
+var rnd=function(a,b){return a+Math.random()*(b-a);};
+var clamp=function(v,a,b){return Math.min(b,Math.max(a,v));};
+
+/* ---------- fabric: damped spring grid, 12px pitch ---------- */
+var PITCH=12, X0=12, Y0=12, CX=18, CY=19, COLS=CX+1, ROWS=CY+1, N=COLS*ROWS;
+var dx=new Float32Array(N), dy=new Float32Array(N), vx=new Float32Array(N), vy=new Float32Array(N);
+var K=85, DAMP=.9, COUP=150, PULL=25;
+function idx(i,j){return j*COLS+i;}
+function nx(i){return X0+i*PITCH;}
+function ny(j){return Y0+j*PITCH;}
+function impulse(x,y,r,mx,my){ for(var j=0;j<ROWS;j++)for(var i=0;i<COLS;i++){
+  var d=Math.hypot(nx(i)-x,ny(j)-y); if(d>r)continue; var f=1-d/r,n=idx(i,j); vx[n]+=mx*f; vy[n]+=my*f; } }
+function pluck(x,y,r,mag){ for(var j=0;j<ROWS;j++)for(var i=0;i<COLS;i++){
+  var ddx=nx(i)-x,ddy=ny(j)-y,d=Math.hypot(ddx,ddy); if(d>r||d<1)continue;
+  var f=(1-d/r)*mag/d,n=idx(i,j); vx[n]+=ddx*f; vy[n]+=ddy*f; } }
+function agitate(m){ for(var n=0;n<N;n++){ vx[n]+=rnd(-m,m); vy[n]+=rnd(-m,m); } }
+function energy(){ var e=0; for(var n=0;n<N;n++) e+=vx[n]*vx[n]+vy[n]*vy[n]+dx[n]*dx[n]+dy[n]*dy[n]; return e/N; }
+function update(dt,target){
+  var dmp=Math.pow(DAMP,dt*60);
+  for(var j=0;j<ROWS;j++)for(var i=0;i<COLS;i++){
+    var n=idx(i,j), fx=-K*dx[n], fy=-K*dy[n], ax=0,ay=0,c=0;
+    if(i>0){ax+=dx[n-1];ay+=dy[n-1];c++;} if(i<COLS-1){ax+=dx[n+1];ay+=dy[n+1];c++;}
+    if(j>0){ax+=dx[n-COLS];ay+=dy[n-COLS];c++;} if(j<ROWS-1){ax+=dx[n+COLS];ay+=dy[n+COLS];c++;}
+    fx+=COUP*(ax/c-dx[n]); fy+=COUP*(ay/c-dy[n]);
+    if(target){ var t=target(i,j); if(t){ fx+=PULL*(t[0]-dx[n]); fy+=PULL*(t[1]-dy[n]); } }
+    vx[n]=(vx[n]+fx*dt)*dmp; vy[n]=(vy[n]+fy*dt)*dmp;
+    dx[n]+=vx[n]*dt; dy[n]+=vy[n]*dt;
+  }
+}
+
+/* ---------- sound: bent tones, unlocked on first gesture ---------- */
+var AC=null;
+function tone(f0,f1,dur,g){ if(!AC)return; try{
+  var o=AC.createOscillator(),ga=AC.createGain(); o.type='sine';
+  o.frequency.setValueAtTime(f0,AC.currentTime); o.frequency.exponentialRampToValueAtTime(Math.max(30,f1),AC.currentTime+dur);
+  ga.gain.setValueAtTime(g||.05,AC.currentTime); ga.gain.exponentialRampToValueAtTime(.0001,AC.currentTime+dur);
+  o.connect(ga); ga.connect(AC.destination); o.start(); o.stop(AC.currentTime+dur+.02);
+}catch(e){} }
+function unlockAudio(){ if(AC)return; try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
+
+/* ---------- state ---------- */
+var mode='set';        /* set | run */
+var dir='down';        /* down | up */
+var mins=10;           /* 0 = count up */
+var endAt=0, startAt=0, lastShown=-1;
+var marks=0, markDate='';
+var doneFlash=0;
+
+/* marks persist: localStorage now, creationStorage mirrored when present */
+function today(){ var d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
+function loadMarks(){ try{ var raw=localStorage.getItem('timer_marks'); if(raw){ var o=JSON.parse(raw);
+  if(o.d===today()){ marks=o.n||0; } } markDate=today(); }catch(e){} }
+function saveMarks(){ try{ localStorage.setItem('timer_marks',JSON.stringify({d:today(),n:marks})); }catch(e){}
+  try{ if(window.creationStorage&&window.creationStorage.plain)
+    window.creationStorage.plain.setItem('timer_marks',btoa(JSON.stringify({d:today(),n:marks}))).catch(function(){});
+  }catch(e){} }
+loadMarks();
+
+/* ---------- readings ---------- */
+var capL=document.getElementById('capL'), capR=document.getElementById('capR');
+var readEl=document.getElementById('read'), readBig=document.getElementById('readBig'), readTxt=document.getElementById('readTxt');
+var readTimer=null;
+function mmss(s){ s=Math.max(0,Math.round(s)); return (s>=3600? Math.floor(s/3600)+':' : '')+String(Math.floor(s/60)%60).padStart(2,'0')+':'+String(s%60).padStart(2,'0'); }
+function remaining(){ return (endAt-Date.now())/1000; }
+function elapsed(){ return (Date.now()-startAt)/1000; }
+function caps(){
+  if(markDate!==today()){ marks=0; markDate=today(); saveMarks(); }
+  if(doneFlash>Date.now()){ capL.textContent='done'; capR.textContent=marks+' today'; return; }
+  if(mode==='set'){ capL.textContent=(mins===0?'count up':mins+' min')+' \u00b7 tap to start'; capR.textContent='scroll sets'; }
+  else if(dir==='down'){ capL.textContent='winding down'; capR.textContent=mmss(remaining()); }
+  else { capL.textContent='counting up'; capR.textContent=mmss(elapsed()); }
+}
+function showRead(big,txt){ readBig.textContent=big||''; readBig.style.display=big?'block':'none';
+  readTxt.textContent=txt||''; readEl.style.display='flex';
+  clearTimeout(readTimer); readTimer=setTimeout(function(){ readEl.style.display='none'; },2000); }
+
+/* ---------- actions ---------- */
+function start(){ if(mode!=='set')return;
+  dir = mins===0?'up':'down';
+  if(dir==='down') endAt=Date.now()+mins*60000; else startAt=Date.now();
+  mode='run'; lastInput=T; pluck(120,126,110,80); tone(300,480,.15,.05); }
+function complete(withMark){ mode='set';
+  if(withMark){ marks++; saveMarks(); agitate(18); tone(300,700,.5,.06); doneFlash=Date.now()+2500; }
+  lastInput=T; }
+function resetHold(){ if(mode==='run'){ mode='set'; agitate(24); tone(500,140,.3,.05); } lastInput=T; }
+function tapAction(){
+  unlockAudio(); lastInput=T;
+  if(mode==='set'){ start(); return; }
+  if(dir==='up'){ var e=elapsed(); complete(true); showRead(mmss(e),'counted \u00b7 a mark left behind'); return; }
+  showRead(mmss(remaining()),null); tone(520,300,.08,.04);
+}
+function wheel(d){ unlockAudio(); lastInput=T;
+  if(mode!=='set')return;
+  mins=clamp(mins+d*5,0,90); tone(600,600-d*40,.04,.04); }
+
+/* ---------- r1 native events (window) + desktop fallbacks ---------- */
+window.addEventListener('scrollUp', function(){ wheel(-1); });
+window.addEventListener('scrollDown', function(){ wheel(1); });
+window.addEventListener('sideClick', function(){ tapAction(); });
+var lpFired=false;
+window.addEventListener('longPressStart', function(){ lpFired=true; resetHold(); });
+window.addEventListener('longPressEnd', function(){ setTimeout(function(){ lpFired=false; },50); });
+
+/* touch/pointer: pointerdown/up, NO preventDefault (touchstart+preventDefault crashes the webview keyboard path) */
+var pressT=null, longDone=false;
+document.body.addEventListener('pointerdown', function(){ unlockAudio(); longDone=false;
+  pressT=setTimeout(function(){ longDone=true; resetHold(); },600); });
+document.body.addEventListener('pointerup', function(){ clearTimeout(pressT);
+  if(longDone||lpFired)return; tapAction(); });
+document.body.addEventListener('pointercancel', function(){ clearTimeout(pressT); });
+
+/* desktop testing: mouse wheel + keys */
+window.addEventListener('wheel', function(e){ wheel(e.deltaY>0?1:-1); }, {passive:true});
+document.addEventListener('keydown', function(e){
+  if(e.key==='ArrowUp') window.dispatchEvent(new Event('scrollUp'));
+  if(e.key==='ArrowDown') window.dispatchEvent(new Event('scrollDown'));
+  if(e.key==='Escape') window.dispatchEvent(new Event('sideClick'));
+  if(e.key===' '&&!e.repeat) window.dispatchEvent(new Event('longPressStart'));
+});
+document.addEventListener('keyup', function(e){ if(e.key===' ') window.dispatchEvent(new Event('longPressEnd')); });
+
+/* ---------- render ---------- */
+var cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+var dpr=window.devicePixelRatio||1; cv.width=240*dpr; cv.height=282*dpr; ctx.scale(dpr,dpr);
+var T=0, last=0, lastInput=0, lastDraw=0, lastTone=0, FRAME=0;
+function fillCell(i,j,col){ if(i<0||j<0||i>=CX||j>=CY)return;
+  ctx.fillStyle=col; ctx.beginPath();
+  ctx.moveTo(nx(i)+dx[idx(i,j)],ny(j)+dy[idx(i,j)]);
+  ctx.lineTo(nx(i+1)+dx[idx(i+1,j)],ny(j)+dy[idx(i+1,j)]);
+  ctx.lineTo(nx(i+1)+dx[idx(i+1,j+1)],ny(j+1)+dy[idx(i+1,j+1)]);
+  ctx.lineTo(nx(i)+dx[idx(i,j+1)],ny(j+1)+dy[idx(i,j+1)]);
+  ctx.closePath(); ctx.fill(); }
+function frame(now){
+  requestAnimationFrame(frame);
+  if(now-lastDraw<33) return;              /* ~30fps — the r1 is a small machine */
+  var dt=Math.min(.05,(now-last)/1000||.033); last=now; lastDraw=now; T+=dt; FRAME++;
+
+  /* physics (sleeps when settled) */
+  var frac = (mode==='run'&&dir==='down') ? clamp(remaining()/(mins*60),0,1) : 0;
+  var sleeping = (T-lastInput>3) && energy()<.05 && mode!=='run';
+  if(!sleeping || FRAME%30===0){
+    if(mode==='run'&&dir==='down'&&remaining()<=10&&remaining()>0){ agitate(3); /* the last ten seconds tremble */
+      if(now-lastTone>1000){ lastTone=now; tone(700,900,.08,.035); } }
+    update(dt, frac>0 ? function(i,j){ return [Math.sin(j*1.05)*10*frac,0]; } : null);
+  }
+  if(mode==='run'&&dir==='down'&&remaining()<=0) complete(true);
+
+  /* draw */
+  ctx.fillStyle=INK; ctx.fillRect(0,0,240,282);
+  /* fills first: count-up accumulation + today's marks */
+  if(mode==='run'&&dir==='up'){ var nMin=Math.floor(elapsed()/60)+1;
+    for(var k=0;k<nMin&&k<CX*4;k++) fillCell(k%CX,Math.floor(k/CX),CYAN); }
+  for(var m=0;m<marks&&m<CX;m++) fillCell(m,CY-1,LIME);
+  /* lines */
+  ctx.strokeStyle=CYAN; ctx.lineWidth=1; ctx.lineJoin='round'; ctx.lineCap='round';
+  for(var j=0;j<ROWS;j++){ ctx.beginPath();
+    for(var i=0;i<COLS;i++){ var x=nx(i)+dx[idx(i,j)], y=ny(j)+dy[idx(i,j)]; i?ctx.lineTo(x,y):ctx.moveTo(x,y); } ctx.stroke(); }
+  for(var i2=0;i2<COLS;i2++){ ctx.beginPath();
+    for(var j2=0;j2<ROWS;j2++){ var x2=nx(i2)+dx[idx(i2,j2)], y2=ny(j2)+dy[idx(i2,j2)]; j2?ctx.lineTo(x2,y2):ctx.moveTo(x2,y2); } ctx.stroke(); }
+
+  /* the second shown at 1Hz, in the foot */
+  var shown=Math.floor(now/1000);
+  if(shown!==lastShown){ lastShown=shown; caps(); }
+}
+caps(); requestAnimationFrame(frame);
+</script>
+</body>
+</html>
