@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>install creations.</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<style>
+body{background:#000;color:#F2F2EE;font-family:"Power Grotesk","Helvetica Neue",Helvetica,Arial,sans-serif;
+  font-weight:300;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:100vh;margin:0;gap:24px;text-align:center}
+h1{font-size:48px;font-weight:300;margin:0;color:#2EF0FF}
+#qr{background:#fff;padding:24px;line-height:0}
+#qr img{image-rendering:pixelated;width:320px;height:320px}
+p{font-size:14px;max-width:44ch;line-height:1.4;opacity:.8;margin:0}
+code{font-family:inherit;font-weight:400;color:#2EF0FF;word-break:break-all}
+</style>
+</head>
+<body>
+<h1>creations.</h1>
+<div id="qr"></div>
+<p>open the r1 camera and scan to install.</p>
+<p>serving from: <code id="urlShow"></code></p>
+
+<script>
+/* ==========================================================
+   EDIT THIS ONE LINE once the app is hosted:
+   your GitHub Pages URL for the timer folder, with ?v=1.
+   bump ?v= only when you want the r1 to refetch the install
+   URL itself — ordinary code updates apply on next open.
+========================================================== */
+var creationUrl = 'https://YOUR-USERNAME.github.io/r1/creations/?v=1';
+
+var payload = JSON.stringify({
+  title: 'creations.',
+  url: creationUrl,
+  description: 'timer and pomodoro behind one menu. scroll, tap, hold; the side button comes home.',
+  iconUrl: '',
+  themeColor: '#2EF0FF'   /* the card colour in the r1 stack — cyan, the time family */
+});
+
+document.getElementById('urlShow').textContent = creationUrl;
+var q = qrcode(0, 'M');
+q.addData(payload);
+q.make();
+document.getElementById('qr').innerHTML = q.createImgTag(8, 0);
+</script>
+</body>
+</html>
