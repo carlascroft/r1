@@ -44,9 +44,9 @@ body{font-family:"Power Grotesk",-apple-system,Helvetica,Arial,sans-serif;color:
       ignored in favour of what's stored on the device
 ================================================================== */
 'use strict';
-var PROXY = 'https://2d5fc212.rabbit-r1-podcast-player.pages.dev';
+var PROXY = 'https://PASTE-YOUR-WORKER.workers.dev/?url=';
 var FEEDS = [
-  { name:'99pi',      url:'https://feeds.simplecast.com/BqbsxVfO' },
+  { name:'replace me',      url:'https://example.com/feed.xml' },
   { name:'and me',          url:'https://example.com/feed2.xml' },
 ];
 
@@ -168,23 +168,23 @@ if(!SUBS){ SUBS = FEEDS.map(function(f){ return {name:f.name,url:f.url}; })
 var QUEUE = load('pod_queue')||[];   /* [{title,url,dur,date,feed}] */
 
 /* ---------- voice: hold the search band and speak ----------
-   uses the r1 voice bridge; if a transcript never arrives on your
-   device, compare the two marked lines with the voice example in
-   R1_CREATION_TIPS.md — they are the only lines to touch. */
+   uses the r1 voice bridge per R1_CREATION_TIPS.md:
+   postMessage('start') / ('stop'), transcript arrives as
+   onPluginMessage {type:'sttEnded', transcript}. */
 var VOICE={active:false,waiting:false,
   start:function(){ this.active=true; lastInput=T;
-    try{ if(window.CreationVoiceHandler) CreationVoiceHandler.postMessage(JSON.stringify({action:'startVoice'})); /* ← marked line 1 */ }catch(e){}
+    try{ if(typeof CreationVoiceHandler!=='undefined') CreationVoiceHandler.postMessage('start'); }catch(e){}
     caps(); },
   stop:function(){ if(!this.active)return; this.active=false; this.waiting=true; caps();
-    try{ if(window.CreationVoiceHandler) CreationVoiceHandler.postMessage(JSON.stringify({action:'stopVoice'}));  /* ← marked line 2 */ }catch(e){}
-    if(!window.CreationVoiceHandler){ var q=prompt('say it (desktop stand-in):'); VOICE.deliver(q||''); }
+    try{ if(typeof CreationVoiceHandler!=='undefined') CreationVoiceHandler.postMessage('stop'); }catch(e){}
+    if(typeof CreationVoiceHandler==='undefined'){ var q=prompt('say it (desktop stand-in):'); VOICE.deliver(q||''); }
     var self=this; setTimeout(function(){ if(self.waiting){ self.waiting=false; err='voice: no transcript \u2014 see tips doc'; caps(); } },8000); },
   deliver:function(text){ this.active=false; this.waiting=false; if(text) runSearch(String(text)); else caps(); }
 };
-window.onPluginMessage=function(e){ try{
-  var d=(typeof e.data==='string')?JSON.parse(e.data):(e.data||e);
-  var t=d.transcript||d.transcription||d.text||d.sttResult||(d.data&&(d.data.transcript||d.data.text));
-  if(t&&(VOICE.active||VOICE.waiting)) VOICE.deliver(String(t)); }catch(err2){} };
+window.onPluginMessage=function(data){ try{
+  if(!data||data.type!=='sttEnded')return;
+  var t=(data.transcript||'').trim();
+  if(VOICE.active||VOICE.waiting) VOICE.deliver(t); }catch(err2){} };
 
 /* ---------- search: library first, catalogue behind it ---------- */
 function scoreText(hay,words){ hay=hay.toLowerCase(); var sc=0;
