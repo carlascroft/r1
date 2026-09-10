@@ -18,7 +18,7 @@
 ================================================================== */
 
 const ALLOW_HOSTS = [
-  'example.com',            // ← replace with your feed hosts, e.g.
+  'feeds.simplecast.com',            // ← replace with your feed hosts, e.g.
   // 'feeds.simplecast.com',
   // 'feeds.megaphone.fm',
   // 'anchor.fm',
