@@ -16,3 +16,5 @@ scratch/
 # secrets (worker tokens, API keys) — never commit these
 .env
 .dev.vars
+__pycache__/
+*.pyc
