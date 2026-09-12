@@ -20,18 +20,25 @@ body{font-family:"Power Grotesk",Inter,-apple-system,Helvetica,Arial,sans-serif;
   justify-content:center;gap:6px}
 #name{font-size:22px;line-height:1.1;letter-spacing:-.01em;word-break:break-word}
 #app{font-size:11px;line-height:1.3;color:var(--muted);word-break:break-all}
+/* milestone 2: the one key. a drawn cell; pressed = filled. */
+#key{margin-top:14px;border:1px solid var(--accent-dim);padding:8px 10px;display:flex;
+  justify-content:space-between;align-items:baseline;font-size:12px}
+#key .hint{font-size:10px;color:var(--muted)}
+#key.pressed{background:var(--accent);color:#000}
+#key.pressed .hint{color:#000}
+#key.none{color:var(--muted);border-style:dashed}
 </style>
 </head>
 <body>
 <div id="top" class="band"><span id="title"></span><span id="host"></span></div>
-<div id="mid"><div id="name">—</div><div id="app"></div></div>
+<div id="mid"><div id="name">—</div><div id="app"></div><div id="key" class="none"><span id="keyLab">no pad yet</span><span class="hint" id="keyHint"></span></div></div>
 <div id="bot" class="band"><span id="reason">connecting</span><span id="state">offline</span></div>
 
 <script>
 /* ==================================================================
-   pad. — milestone 1: context on screen (rabbit r1)
-   the mac says which application is in front; this shows it.
-   no keypad, no actions, no config. side button = leave.
+   pad. — milestone 2: one key (rabbit r1)
+   the mac says which application is in front and which pad applies;
+   this shows it. tap = press the pad's first slot. side button = leave.
    the device holds no truth of its own: it draws what it is told.
 ================================================================== */
 'use strict';
@@ -51,10 +58,33 @@ function setContext(m){
   $name.textContent = m.name || m.app || '—';
   $app.textContent = m.app || '';
 }
+var pad = null, $key = document.getElementById('key'),
+    $keyLab = document.getElementById('keyLab'), $keyHint = document.getElementById('keyHint');
+function setPad(m){
+  pad = m;
+  var slot = (m.pages[0] || [])[0];
+  if (slot) { $keyLab.textContent = slot.label; $keyHint.textContent = slot.hint || ''; $key.className = slot.assigned ? '' : 'none'; }
+  else { $keyLab.textContent = 'free'; $keyHint.textContent = ''; $key.className = 'none'; }
+}
 function handle(m){
   if (m.t === 'status') setStatus(m.state, m.reason);
   else if (m.t === 'context') setContext(m);
+  else if (m.t === 'pad') setPad(m);
 }
+
+/* tap = press. fires on pointerdown, because a control surface should not wait for the finger to lift.
+   pointer events only — never touchstart with preventDefault on this webview. */
+function press(){
+  if (!pad || !ws || ws.readyState !== 1) return;
+  ws.send(JSON.stringify({ t: 'press', pad: pad.id, page: 0, slot: 0 }));
+  $key.classList.add('pressed');
+}
+function release(){ $key.classList.remove('pressed'); }
+window.addEventListener('pointerdown', press);
+window.addEventListener('pointerup', release);
+window.addEventListener('pointercancel', release);
+window.addEventListener('keydown', function(e){ if (e.key === 'Enter') press(); });   /* desktop fallback */
+window.addEventListener('keyup',   function(e){ if (e.key === 'Enter') release(); });
 
 /* one socket, reopened on drop with a backoff */
 var ws = null, backoff = 500;

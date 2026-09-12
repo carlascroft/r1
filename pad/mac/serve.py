@@ -12,7 +12,8 @@ stays reachable under /spikes/.
 Binds 0.0.0.0 on purpose: the r1 is another device on the same network and has to
 reach this process. There is no authentication in this version (see docs/protocol.md).
 
-Milestone 1: context only. Nothing here executes anything.
+Milestone 2: one hard-coded pad. A press from the device becomes a keystroke; every
+executed action is logged with a timestamp. Nothing fires on connect or reconnect.
 """
 import base64
 import hashlib
@@ -27,6 +28,8 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from context import ContextError, make_reader, pump  # noqa: E402
+from input import InputError, keystroke, trusted  # noqa: E402
+from pads import current_pad, slot_action, to_device  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -94,7 +97,8 @@ class Client:
 
 clients = set()
 clients_lock = threading.Lock()
-state = {"context": None, "status": {"t": "status", "state": "offline", "reason": "starting"}}
+state = {"context": None, "pad": None,
+         "status": {"t": "status", "state": "offline", "reason": "starting"}}
 
 
 def broadcast(message):
@@ -114,7 +118,11 @@ def context_loop():
     while True:
         try:
             context = read()
-            status = {"t": "status", "state": "linked"}
+            if trusted():
+                status = {"t": "status", "state": "linked"}
+            else:
+                status = {"t": "status", "state": "offline",
+                          "reason": "accessibility permission not granted"}
         except ContextError as e:
             context = None
             status = {"t": "status", "state": "offline", "reason": str(e)}
@@ -126,7 +134,38 @@ def context_loop():
             state["context"] = context
             broadcast(context)
             log("front  %s (%s)" % (context["app"], context["name"]))
+            pad = current_pad(context)
+            if pad is not state["pad"]:
+                state["pad"] = pad
+                broadcast(to_device(pad))
+                log("pad    %s" % pad["id"])
         pump(POLL_SECONDS)
+
+
+def act(who, message):
+    """Something the device said. Only an explicit press does anything."""
+    kind = message.get("t")
+    if kind != "press":
+        log("%s  %s (ignored at this milestone)" % (who, json.dumps(message)))
+        return
+    pad = state["pad"]
+    if pad is None or message.get("pad") != pad["id"]:
+        log("%s  press for pad %r but %s is showing — nothing done"
+            % (who, message.get("pad"), pad["id"] if pad else None))
+        return
+    page, slot = message.get("page", 0), message.get("slot")
+    action = slot_action(pad, page, slot)
+    if action is None:
+        log("%s  press %s/%s/%s — nothing assigned" % (who, pad["id"], page, slot))
+        return
+    if action["kind"] == "key":
+        try:
+            keystroke(action["keys"])
+            log("%s  press %s/%s/%s → key %s" % (who, pad["id"], page, slot, "+".join(action["keys"])))
+        except InputError as e:
+            log("%s  press %s/%s/%s → failed: %s" % (who, pad["id"], page, slot, e))
+    else:
+        log("%s  press %s/%s/%s → %s actions arrive at milestone 6" % (who, pad["id"], page, slot, action["kind"]))
 
 
 # ---------- http + websocket ----------
@@ -176,6 +215,8 @@ class Handler(SimpleHTTPRequestHandler):
             client.send(state["status"])
             if state["context"] is not None:
                 client.send(state["context"])
+            if state["pad"] is not None:
+                client.send(to_device(state["pad"]))
             while True:
                 frame = read_frame(self.rfile)
                 if frame is None:
@@ -189,7 +230,12 @@ class Handler(SimpleHTTPRequestHandler):
                     with client.lock:
                         write_frame(self.wfile, OP_PONG, data)
                 elif opcode == OP_TEXT:
-                    log("device %s says %s" % (self.client_address[0], data.decode("utf-8", "replace")))
+                    try:
+                        message = json.loads(data.decode("utf-8"))
+                    except ValueError:
+                        log("device %s sent something that is not json" % self.client_address[0])
+                        continue
+                    act("device %s" % self.client_address[0], message)
         except (ConnectionError, OSError):
             pass
         finally:

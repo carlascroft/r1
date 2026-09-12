@@ -36,8 +36,16 @@ That serves `r1/` on port 8080, prints the Mac's LAN address, answers the websoc
 camera; one install serves every milestone. The host logs every request and every
 change of foreground app.
 
-`mac/requirements.txt`: `pyobjc-framework-Cocoa`, for `NSWorkspace` (which app is in
-front). Nothing else yet.
+`mac/requirements.txt`, one line each:
+
+- `pyobjc-framework-Cocoa` — `NSWorkspace`, which app is in front.
+- `pyobjc-framework-Quartz` — `CGEvent`, the synthesised keystrokes.
+- `pyobjc-framework-ApplicationServices` — `AXIsProcessTrusted`, whether this process
+  may post them.
+
+The first press asks macOS for Accessibility permission for whatever launched
+`python3` (Terminal, usually). Until it is granted the device says so in its bottom
+band and presses are logged but nothing happens on the Mac.
 
 ## Repo layout once building starts
 

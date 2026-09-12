@@ -47,6 +47,10 @@ switching applications on the Mac changes what the device shows.
 Foreground app via `NSWorkspace.frontmostApplication` through pyobjc, polled a few times
 a second.
 
+**Result.** Works, with one trap: NSWorkspace only notices activations while the Cocoa
+run loop turns, so the poll has to sit on the main thread and pump `NSRunLoop` between
+reads. Polled from a plain thread it reports the same app forever. Seen on the device.
+
 ## 2 — One pad, one key, one keystroke
 
 Hard-code a single pad. Press a key on the r1, get a keystroke on the Mac. Quartz
