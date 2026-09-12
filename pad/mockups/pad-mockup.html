@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>pad. — interface mockup</title>
+<style>
+  :root{
+    --ink:#0a0a0a;
+    --paper:#e8e6de;
+    --line:#c9c6bb;
+    --orange:#ff6b1a;
+    --orange-dim:#5c2708;
+    --cyan:#00e0d0;
+    --muted:#8a8780;
+    --dev-w:240px;
+    --dev-h:282px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Power Grotesk','PowerGrotesk',Inter,'Helvetica Neue',Arial,sans-serif;
+    font-weight:300;
+    padding:40px 32px 64px;
+  }
+  .head{max-width:1120px;margin:0 auto 36px;border-bottom:1px solid var(--line);padding-bottom:16px}
+  .head h1{font-size:20px;font-weight:400;margin:0 0 6px;letter-spacing:-0.01em}
+  .head p{font-size:13px;color:var(--muted);margin:0;max-width:62ch;line-height:1.6}
+  .sheet{max-width:1120px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:40px 36px}
+  .cell{display:flex;flex-direction:column;gap:12px}
+  .frame{
+    width:calc(var(--dev-w) * 1.15);
+    height:calc(var(--dev-h) * 1.15);
+    background:var(--ink);
+    position:relative;
+    overflow:hidden;
+  }
+  .screen{
+    width:var(--dev-w);height:var(--dev-h);
+    transform:scale(1.15);transform-origin:top left;
+    position:relative;background:var(--ink);color:var(--paper);
+    display:flex;flex-direction:column;
+  }
+  .cap{font-size:12px;line-height:1.55;color:var(--muted);max-width:34ch}
+  .cap b{font-weight:400;color:var(--ink);display:block}
+
+  /* device chrome bands */
+  .band{
+    height:22px;flex:0 0 22px;display:flex;align-items:center;justify-content:space-between;
+    padding:0 8px;font-size:9px;letter-spacing:0.06em;color:var(--orange);
+    border-bottom:1px solid var(--orange-dim);
+  }
+  .band.bot{border-bottom:none;border-top:1px solid var(--orange-dim);color:var(--muted)}
+  .dots{display:flex;gap:3px;align-items:center}
+  .dot{width:9px;height:3px;background:var(--orange-dim)}
+  .dot.on{background:var(--orange)}
+
+  /* 3x3 keypad */
+  .pad{flex:1;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr)}
+  .key{
+    border-right:1px solid var(--orange-dim);border-bottom:1px solid var(--orange-dim);
+    padding:5px 6px;display:flex;flex-direction:column;justify-content:space-between;
+    position:relative;
+  }
+  .key:nth-child(3n){border-right:none}
+  .key:nth-child(n+7){border-bottom:none}
+  .key .glyph{width:100%;height:26px}
+  .key .lab{font-size:9px;line-height:1.15;color:var(--paper);font-weight:300}
+  .key .sub{font-size:8px;color:var(--muted);letter-spacing:0.04em}
+  .key.pressed{background:var(--orange)}
+  .key.pressed .lab,.key.pressed .sub{color:var(--ink)}
+  .key.empty .lab{color:#3a3733}
+  .key.sel{box-shadow:inset 0 0 0 2px var(--orange)}
+
+  /* pixel glyphs via box-shadow grid */
+  .px{display:grid;grid-template-columns:repeat(7,3px);grid-auto-rows:3px;gap:1px}
+  .px i{background:var(--orange);display:block}
+  .key.pressed .px i{background:var(--ink)}
+
+  /* continuous control */
+  .knob{flex:1;display:flex;flex-direction:column;justify-content:center;gap:10px;padding:0 12px}
+  .knob .name{font-size:11px;color:var(--paper)}
+  .knob .val{font-size:34px;font-weight:300;letter-spacing:-0.02em;color:var(--orange);line-height:1}
+  .ticks{display:grid;grid-template-columns:repeat(24,1fr);gap:2px;height:18px;align-items:end}
+  .ticks b{background:var(--orange-dim);height:6px;display:block}
+  .ticks b.on{background:var(--orange);height:14px}
+  .hint{font-size:9px;color:var(--muted);letter-spacing:0.04em}
+
+  /* pair screen */
+  .pair{flex:1;display:flex;flex-direction:column;justify-content:center;gap:14px;padding:0 14px}
+  .pair .msg{font-size:11px;color:var(--paper);line-height:1.4}
+  .code{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
+  .code span{
+    border:1px solid var(--orange-dim);height:34px;display:flex;align-items:center;justify-content:center;
+    font-size:16px;color:var(--orange);font-weight:300;
+  }
+  .code span.filled{background:var(--orange);color:var(--ink);border-color:var(--orange)}
+  .code span.cursor{border-color:var(--orange)}
+
+  .notes{max-width:1120px;margin:48px auto 0;border-top:1px solid var(--line);padding-top:20px;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:24px}
+  .notes div{font-size:12px;line-height:1.6;color:var(--muted)}
+  .notes b{font-weight:400;color:var(--ink);display:block;margin-bottom:4px}
+</style>
+</head>
+<body>
+
+<div class="head">
+  <h1>pad. — working title, rename in the install card</h1>
+  <p>Four states of the local control-surface creation, drawn at device size (240×282) and scaled 1.15× for reading. Grid lines are persistent and drawn in the colour; fill is the state. Orange sits in the object family — if you'd rather it read as a tool, the paper face is the other candidate, but calculator has already spent that one.</p>
+</div>
+
+<div class="sheet">
+
+  <div class="cell">
+    <div class="frame"><div class="screen">
+      <div class="band"><span>connect</span><span style="color:var(--muted)">no desktop</span></div>
+      <div class="pair">
+        <div class="msg">enter the six digits shown on the mac</div>
+        <div class="code">
+          <span class="filled">4</span><span class="filled">1</span><span class="filled">9</span>
+          <span class="cursor"></span><span></span><span></span>
+        </div>
+        <div class="hint">wheel picks · tap commits</div>
+      </div>
+      <div class="band bot"><span>192.168.0.14:8080</span><span>—</span></div>
+    </div></div>
+    <p class="cap"><b>pair</b>Local pairing is address-first, not code-first — the code is only there to stop the flat next door driving your machine. The footer carries the LAN address so a failure is legible.</p>
+  </div>
+
+  <div class="cell">
+    <div class="frame"><div class="screen">
+      <div class="band"><span>illustrator</span><div class="dots"><b class="dot on"></b><b class="dot"></b><b class="dot"></b></div></div>
+      <div class="pad">
+        <div class="key"><div class="px"><i style="grid-area:1/1"></i><i style="grid-area:1/4"></i><i style="grid-area:1/7"></i><i style="grid-area:4/1"></i><i style="grid-area:4/4"></i><i style="grid-area:4/7"></i><i style="grid-area:7/1"></i><i style="grid-area:7/4"></i><i style="grid-area:7/7"></i></div><div class="lab">grid<span class="sub"> ⌘"</span></div></div>
+        <div class="key"><div class="px"><i style="grid-area:2/2"></i><i style="grid-area:2/3"></i><i style="grid-area:2/4"></i><i style="grid-area:3/2"></i><i style="grid-area:4/2"></i><i style="grid-area:5/2"></i><i style="grid-area:6/2"></i></div><div class="lab">outline<span class="sub"> ⌘Y</span></div></div>
+        <div class="key pressed"><div class="px"><i style="grid-area:2/2"></i><i style="grid-area:2/5"></i><i style="grid-area:3/3"></i><i style="grid-area:3/4"></i><i style="grid-area:5/2"></i><i style="grid-area:5/5"></i><i style="grid-area:6/3"></i><i style="grid-area:6/4"></i></div><div class="lab">blend<span class="sub"> ⌥⌘B</span></div></div>
+        <div class="key"><div class="px"><i style="grid-area:2/2"></i><i style="grid-area:3/3"></i><i style="grid-area:4/4"></i><i style="grid-area:5/5"></i><i style="grid-area:6/6"></i></div><div class="lab">expand</div></div>
+        <div class="key"><div class="px"><i style="grid-area:2/2"></i><i style="grid-area:2/3"></i><i style="grid-area:2/4"></i><i style="grid-area:2/5"></i><i style="grid-area:5/2"></i><i style="grid-area:5/3"></i><i style="grid-area:5/4"></i><i style="grid-area:5/5"></i></div><div class="lab">join<span class="sub"> ⌘J</span></div></div>
+        <div class="key"><div class="px"><i style="grid-area:2/4"></i><i style="grid-area:3/3"></i><i style="grid-area:3/5"></i><i style="grid-area:4/2"></i><i style="grid-area:4/6"></i><i style="grid-area:5/3"></i><i style="grid-area:5/5"></i><i style="grid-area:6/4"></i></div><div class="lab">pathfinder</div></div>
+        <div class="key"><div class="px"><i style="grid-area:2/2"></i><i style="grid-area:3/2"></i><i style="grid-area:4/2"></i><i style="grid-area:4/3"></i><i style="grid-area:4/4"></i></div><div class="lab">artboard</div></div>
+        <div class="key empty"><div class="lab">—<span class="sub"> free</span></div></div>
+        <div class="key"><div class="px"><i style="grid-area:2/3"></i><i style="grid-area:2/4"></i><i style="grid-area:2/5"></i><i style="grid-area:5/3"></i><i style="grid-area:5/4"></i><i style="grid-area:5/5"></i><i style="grid-area:3/2"></i><i style="grid-area:4/6"></i></div><div class="lab">export svg</div></div>
+      </div>
+      <div class="band bot"><span>page 1 of 3</span><span style="color:var(--orange)">linked</span></div>
+    </div></div>
+    <p class="cap"><b>keypad — key pressed</b>Nine slots, three pages, side button pages through. Pressed state is a full cell fill, so the whole grid reports at a glance. An unassigned slot stays drawn rather than blank — the grid is the constant.</p>
+  </div>
+
+  <div class="cell">
+    <div class="frame"><div class="screen">
+      <div class="band"><span>illustrator</span><div class="dots"><b class="dot"></b><b class="dot on"></b><b class="dot"></b></div></div>
+      <div class="knob">
+        <div class="name">stroke weight</div>
+        <div class="val">0.35<span style="font-size:14px;color:var(--muted)"> pt</span></div>
+        <div class="ticks">
+          <b></b><b></b><b></b><b></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b>
+        </div>
+        <div class="hint">wheel adjusts · stays held until you pick another</div>
+      </div>
+      <div class="band bot"><span>page 2 of 3</span><span style="color:var(--orange)">linked</span></div>
+    </div></div>
+    <p class="cap"><b>continuous control — held</b>Tapping a knob takes the wheel until you deliberately hand it back. The held control replaces the pad rather than shrinking inside it, because 240 across won't carry both honestly.</p>
+  </div>
+
+  <div class="cell">
+    <div class="frame"><div class="screen">
+      <div class="band"><span style="color:var(--cyan)">schlep.</span><div class="dots"><b class="dot on" style="background:var(--cyan)"></b><b class="dot"></b><b class="dot"></b></div></div>
+      <div class="pad" style="--orange:var(--cyan)">
+        <div class="key" style="border-color:#063f3a"><div class="px"><i style="background:var(--cyan);grid-area:2/2"></i><i style="background:var(--cyan);grid-area:2/5"></i><i style="background:var(--cyan);grid-area:5/2"></i><i style="background:var(--cyan);grid-area:5/5"></i></div><div class="lab">reseed</div></div>
+        <div class="key" style="border-color:#063f3a"><div class="px"><i style="background:var(--cyan);grid-area:3/2"></i><i style="background:var(--cyan);grid-area:3/3"></i><i style="background:var(--cyan);grid-area:3/4"></i><i style="background:var(--cyan);grid-area:3/5"></i><i style="background:var(--cyan);grid-area:3/6"></i></div><div class="lab">seam</div></div>
+        <div class="key" style="border-color:#063f3a"><div class="px"><i style="background:var(--cyan);grid-area:2/2"></i><i style="background:var(--cyan);grid-area:3/3"></i><i style="background:var(--cyan);grid-area:4/4"></i></div><div class="lab">weave</div></div>
+        <div class="key" style="border-color:#063f3a"><div class="px"><i style="background:var(--cyan);grid-area:2/3"></i><i style="background:var(--cyan);grid-area:4/3"></i><i style="background:var(--cyan);grid-area:6/3"></i></div><div class="lab">panels</div></div>
+        <div class="key" style="border-color:#063f3a"><div class="px"><i style="background:var(--cyan);grid-area:2/2"></i><i style="background:var(--cyan);grid-area:2/6"></i><i style="background:var(--cyan);grid-area:6/2"></i><i style="background:var(--cyan);grid-area:6/6"></i></div><div class="lab">wear</div></div>
+        <div class="key empty" style="border-color:#063f3a"><div class="lab">—<span class="sub"> free</span></div></div>
+        <div class="key" style="border-color:#063f3a"><div class="px"><i style="background:var(--cyan);grid-area:2/4"></i><i style="background:var(--cyan);grid-area:3/4"></i><i style="background:var(--cyan);grid-area:4/4"></i><i style="background:var(--cyan);grid-area:5/3"></i><i style="background:var(--cyan);grid-area:5/5"></i></div><div class="lab">save svg</div></div>
+        <div class="key" style="border-color:#063f3a"><div class="px"><i style="background:var(--cyan);grid-area:2/2"></i><i style="background:var(--cyan);grid-area:2/3"></i><i style="background:var(--cyan);grid-area:2/4"></i><i style="background:var(--cyan);grid-area:2/5"></i><i style="background:var(--cyan);grid-area:2/6"></i><i style="background:var(--cyan);grid-area:5/4"></i></div><div class="lab">to proof.</div></div>
+        <div class="key" style="border-color:#063f3a"><div class="px"><i style="background:var(--cyan);grid-area:2/4"></i><i style="background:var(--cyan);grid-area:3/4"></i><i style="background:var(--cyan);grid-area:4/4"></i><i style="background:var(--cyan);grid-area:5/4"></i><i style="background:var(--cyan);grid-area:6/4"></i><i style="background:var(--cyan);grid-area:6/3"></i><i style="background:var(--cyan);grid-area:6/5"></i></div><div class="lab">send</div></div>
+      </div>
+      <div class="band bot"><span>chrome · tab</span><span style="color:var(--cyan)">linked</span></div>
+    </div></div>
+    <p class="cap"><b>tab-aware pad</b>The thing ZAPAD structurally can't do. Keyed off the active tab rather than the frontmost app, so each generator gets its own face and the keys call your endpoints instead of pretending to be a keyboard. Cyan here only to show the pad travels — the family rule still decides.</p>
+  </div>
+
+</div>
+
+<div class="notes">
+  <div><b>What's drawn vs what's filled</b>Grid lines are permanent and coloured; fill means state — pressed, held, occupied. Nothing appears or disappears, which keeps the pad readable as one object rather than a list.</div>
+  <div><b>Open questions</b>Whether the top band carries the app name or the pad name. Whether an empty slot should be drawn at all, or whether the gap is more honest. Whether page dots belong at top or bottom.</div>
+  <div><b>Not yet drawn</b>Desktop-offline face, the settings/edit mode, the moment a custom shortcut is being recorded, and the boot sequence into the shared runtime.</div>
+</div>
+
+</body>
+</html>

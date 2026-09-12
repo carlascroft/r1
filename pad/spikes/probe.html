@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=240,height=282,initial-scale=1">
+<title>probe</title>
+<style>
+  html,body{margin:0;padding:0;background:#0a0a0a;color:#e8e6de;
+    font-family:'Power Grotesk',Inter,-apple-system,sans-serif;font-weight:300}
+  body{width:240px;height:282px;padding:10px;font-size:11px;line-height:1.5}
+  h1{font-size:11px;font-weight:300;color:#ff6b1a;margin:0 0 10px;
+    border-bottom:1px solid #5c2708;padding-bottom:6px;letter-spacing:0.06em}
+  .row{display:flex;gap:6px;margin-bottom:8px;align-items:flex-start}
+  .box{width:9px;height:9px;flex:0 0 9px;border:1px solid #5c2708;margin-top:2px}
+  .box.ok{background:#ff6b1a;border-color:#ff6b1a}
+  .box.no{background:#5c2708;border-color:#5c2708}
+  .t{flex:1}
+  .d{color:#8a8780;font-size:9px;word-break:break-all}
+  #host{position:absolute;bottom:10px;left:10px;right:10px;font-size:9px;color:#8a8780;
+    border-top:1px solid #5c2708;padding-top:6px}
+</style>
+</head>
+<body>
+<h1>cleartext probe</h1>
+
+<div class="row"><div class="box ok" id="b1"></div><div class="t">page loaded over http<div class="d" id="d1">if you can read this, the webview allowed cleartext</div></div></div>
+<div class="row"><div class="box" id="b2"></div><div class="t">same-origin fetch<div class="d" id="d2">testing…</div></div></div>
+<div class="row"><div class="box" id="b3"></div><div class="t">websocket<div class="d" id="d3">testing…</div></div></div>
+
+<div id="host"></div>
+
+<script>
+  var host = location.host;
+  document.getElementById('host').textContent = location.protocol + '//' + host;
+
+  function mark(n, ok, msg){
+    var b = document.getElementById('b' + n);
+    b.className = 'box ' + (ok ? 'ok' : 'no');
+    document.getElementById('d' + n).textContent = msg;
+  }
+
+  fetch('./probe.json', {cache:'no-store'})
+    .then(function(r){ return r.json(); })
+    .then(function(j){ mark(2, true, 'read probe.json: ' + JSON.stringify(j)); })
+    .catch(function(e){ mark(2, false, 'failed: ' + e.message); });
+
+  try {
+    var ws = new WebSocket('ws://' + host + '/ws');
+    var settled = false;
+    ws.onopen = function(){ settled = true; mark(3, true, 'open'); ws.close(); };
+    ws.onerror = function(){ if(!settled) mark(3, false, 'refused — expected if no ws server is running yet'); };
+    setTimeout(function(){ if(!settled) mark(3, false, 'no response in 5s'); }, 5000);
+  } catch(e) {
+    mark(3, false, 'blocked: ' + e.message);
+  }
+</script>
+</body>
+</html>
