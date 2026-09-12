@@ -25,14 +25,17 @@ LAN. If it will not, the local architecture does not work and the plan changes b
 any code is written.
 
 ```
-cd spikes
-python3 -m http.server 8080 --bind 0.0.0.0
+python3 mac/serve.py
 ```
 
-Find the Mac's LAN address (`ipconfig getifaddr en0`), build an install QR pointing at
-`http://<that-address>:8080/probe.html`, install it on the r1, and read the three lines
-on screen. The websocket line is expected to fail at this stage — there is no socket
-server yet. The first two lines are the ones that matter.
+That serves `spikes/` on port 8080, prints the Mac's LAN address, and answers the
+websocket at `/ws`, so all three lines on the probe can pass. Open the `install.html`
+address it prints in a browser on the Mac, scan the QR with the r1 camera, open the
+creation on the device, and read the three lines on screen. The host logs every
+request, so the terminal shows what the device managed to reach even if the screen
+does not.
+
+The host is standard library only; nothing to install for the spike.
 
 ## Repo layout once building starts
 

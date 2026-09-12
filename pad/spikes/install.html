@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>install probe</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<style>
+:root{--accent:#ff6b1a}
+body{background:#000;color:#F2F2EE;font-family:"Power Grotesk","Helvetica Neue",Helvetica,Arial,sans-serif;
+  font-weight:300;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:100vh;margin:0;gap:24px;text-align:center;padding:24px;box-sizing:border-box}
+h1{font-size:48px;font-weight:300;margin:0;color:var(--accent)}
+#qr{background:#fff;padding:24px;line-height:0;min-width:64px;min-height:64px}
+#qr img{image-rendering:pixelated;width:320px;height:320px;max-width:80vw;max-height:80vw}
+p{font-size:14px;max-width:44ch;line-height:1.4;opacity:.8;margin:0}
+code{font-family:inherit;font-weight:400;color:var(--accent);word-break:break-all}
+label{font-size:12px;opacity:.6}
+input{font:inherit;font-size:14px;background:#111;color:#F2F2EE;border:1px solid #333;padding:8px 10px;
+  width:28ch;max-width:80vw;text-align:center}
+</style>
+</head>
+<body>
+<h1>probe</h1>
+<div id="qr"></div>
+<p>open the r1 camera and scan to install. then open it on the device and read the three lines.</p>
+<p>installing: <code id="urlShow"></code></p>
+<p><label for="addr">served from</label><br><input id="addr" spellcheck="false"></p>
+
+<script>
+/* ==========================================================
+   milestone 0 — install QR for spikes/probe.html.
+   when this page is served by mac/serve.py the address below
+   is filled from location.host, so nothing needs typing.
+   opened from disk (file://) it falls back to an editable
+   host:port — put the mac's lan address there.
+========================================================== */
+var addr = document.getElementById('addr');
+addr.value = (location.protocol === 'http:' && location.host) ? location.host : '192.168.0.0:8080';
+
+function render(){
+  var url = 'http://' + addr.value.trim().replace(/\/+$/, '') + '/probe.html?v=1';
+  var payload = JSON.stringify({
+    title: 'probe',
+    url: url,
+    description: 'pad. milestone 0 — can the webview reach the lan over plain http?',
+    iconUrl: '',
+    themeColor: '#ff6b1a'   /* placeholder; the pad accent is undecided */
+  });
+  document.getElementById('urlShow').textContent = url;
+  var q = qrcode(0, 'M');
+  q.addData(payload);
+  q.make();
+  document.getElementById('qr').innerHTML = q.createImgTag(8, 0);
+}
+addr.addEventListener('input', render);
+render();
+</script>
+</body>
+</html>
