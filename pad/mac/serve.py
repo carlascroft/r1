@@ -1,32 +1,46 @@
 #!/usr/bin/env python3
 """
-pad. — milestone 0 host.
+pad. — the host.
 
-Serves a folder over plain HTTP on the LAN and answers a websocket upgrade at /ws,
-so every line of spikes/probe.html can go green. Standard library only: nothing to
-install for the spike. The websocket code here is the seed of the real host; the
-HTTP part will be replaced when there is something to serve beyond a probe.
+Serves the creation (r1/) over plain HTTP on the LAN, keeps a websocket at /ws, and
+tells every connected device what is in front on the Mac. The probe from milestone 0
+stays reachable under /spikes/.
 
-    python3 mac/serve.py            serves ../spikes on port 8080
-    python3 mac/serve.py r1         serves ../r1 instead
-    python3 mac/serve.py r1 9000    on another port
+    python3 mac/serve.py            port 8080
+    python3 mac/serve.py 9000       another port
 
 Binds 0.0.0.0 on purpose: the r1 is another device on the same network and has to
 reach this process. There is no authentication in this version (see docs/protocol.md).
+
+Milestone 1: context only. Nothing here executes anything.
 """
 import base64
 import hashlib
+import json
 import os
 import socket
 import struct
 import sys
+import threading
+import time
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from context import ContextError, make_reader  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
+R1_DIR = os.path.join(ROOT, "r1")
+SPIKES_DIR = os.path.join(ROOT, "spikes")
 WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+POLL_SECONDS = 0.25
 
 OP_TEXT, OP_CLOSE, OP_PING, OP_PONG = 0x1, 0x8, 0x9, 0xA
+
+
+def log(line):
+    sys.stdout.write("%s  %s\n" % (time.strftime("%H:%M:%S"), line))
+    sys.stdout.flush()
 
 
 # ---------- websocket framing (RFC 6455, server side, no extensions) ----------
@@ -65,8 +79,68 @@ def write_frame(wfile, opcode, data=b""):
     wfile.flush()
 
 
+# ---------- connected devices and what they are told ----------
+
+class Client:
+    def __init__(self, handler):
+        self.handler = handler
+        self.lock = threading.Lock()  # the poller and the handler both write
+
+    def send(self, message):
+        data = json.dumps(message).encode()
+        with self.lock:
+            write_frame(self.handler.wfile, OP_TEXT, data)
+
+
+clients = set()
+clients_lock = threading.Lock()
+state = {"context": None, "status": {"t": "status", "state": "offline", "reason": "starting"}}
+
+
+def broadcast(message):
+    with clients_lock:
+        targets = list(clients)
+    for client in targets:
+        try:
+            client.send(message)
+        except OSError:
+            pass  # its reader loop will notice and drop it
+
+
+def context_loop():
+    """Poll what is in front; tell the devices only when it changes."""
+    read = make_reader()
+    while True:
+        try:
+            context = read()
+            status = {"t": "status", "state": "linked"}
+        except ContextError as e:
+            context = None
+            status = {"t": "status", "state": "offline", "reason": str(e)}
+        if status != state["status"]:
+            state["status"] = status
+            broadcast(status)
+            log("status %s%s" % (status["state"], (" — " + status["reason"]) if "reason" in status else ""))
+        if context is not None and context != state["context"]:
+            state["context"] = context
+            broadcast(context)
+            log("front  %s (%s)" % (context["app"], context["name"]))
+        time.sleep(POLL_SECONDS)
+
+
+# ---------- http + websocket ----------
+
 class Handler(SimpleHTTPRequestHandler):
     protocol_version = "HTTP/1.1"  # browsers refuse a 101 on HTTP/1.0
+
+    def translate_path(self, path):
+        # r1/ is the root; spikes/ is mounted at /spikes/ so the probe stays reachable.
+        clean = path.split("?", 1)[0].split("#", 1)[0]
+        base, rel = R1_DIR, clean
+        if clean == "/spikes" or clean.startswith("/spikes/"):
+            base, rel = SPIKES_DIR, clean[len("/spikes"):]
+        parts = [p for p in rel.split("/") if p and p not in (".", "..")]
+        return os.path.join(base, *parts)
 
     def do_GET(self):
         if self.path.split("?", 1)[0] == "/ws":
@@ -91,27 +165,39 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header("Sec-WebSocket-Accept", accept)
         self.end_headers()
         self.close_connection = True
-        self.log_message("websocket open")
+
+        client = Client(self)
+        with clients_lock:
+            clients.add(client)
+        log("device %s connected" % self.client_address[0])
         try:
+            # Tell a new device where things stand. No action ever fires on connect.
+            client.send(state["status"])
+            if state["context"] is not None:
+                client.send(state["context"])
             while True:
                 frame = read_frame(self.rfile)
                 if frame is None:
                     break
                 opcode, data = frame
                 if opcode == OP_CLOSE:
-                    write_frame(self.wfile, OP_CLOSE, data[:2])  # echo the code back
+                    with client.lock:
+                        write_frame(self.wfile, OP_CLOSE, data[:2])
                     break
                 if opcode == OP_PING:
-                    write_frame(self.wfile, OP_PONG, data)
+                    with client.lock:
+                        write_frame(self.wfile, OP_PONG, data)
                 elif opcode == OP_TEXT:
-                    self.log_message("websocket text: %s", data.decode("utf-8", "replace"))
+                    log("device %s says %s" % (self.client_address[0], data.decode("utf-8", "replace")))
         except (ConnectionError, OSError):
             pass
-        self.log_message("websocket closed")
+        finally:
+            with clients_lock:
+                clients.discard(client)
+            log("device %s gone" % self.client_address[0])
 
     def log_message(self, fmt, *args):
-        sys.stdout.write("%s  %s\n" % (self.client_address[0], fmt % args))
-        sys.stdout.flush()
+        log("%s  %s" % (self.client_address[0], fmt % args))
 
 
 # ---------- startup ----------
@@ -129,25 +215,19 @@ def lan_ip():
 
 
 def main():
-    folder = sys.argv[1] if len(sys.argv) > 1 else "spikes"
-    port = int(sys.argv[2]) if len(sys.argv) > 2 else 8080
-    directory = os.path.join(ROOT, folder)
-    if not os.path.isdir(directory):
-        sys.exit("no such folder to serve: %s" % directory)
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8080
 
-    def handler(*a, **kw):
-        return Handler(*a, directory=directory, **kw)
-
-    server = ThreadingHTTPServer(("0.0.0.0", port), handler)
+    server = ThreadingHTTPServer(("0.0.0.0", port), Handler)
     ip = lan_ip() or "<this mac's lan address>"
     base = "http://%s:%d" % (ip, port)
-    print("pad. host — milestone 0")
-    print("serving   %s" % directory)
-    print("page      %s/" % base)
-    print("install   %s/install.html   (open on the mac, scan on the r1)" % base)
+    print("pad. host")
+    print("creation  %s/" % base)
+    print("probe     %s/spikes/probe.html" % base)
+    print("install   %s/spikes/install.html   (open on the mac, scan on the r1)" % base)
     print("socket    ws://%s:%d/ws" % (ip, port))
     print("ctrl-c to stop")
     print()
+    threading.Thread(target=context_loop, name="context", daemon=True).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:

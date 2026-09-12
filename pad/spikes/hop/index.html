@@ -49,7 +49,8 @@
     var p = kv.split('='); if (p[0]) q[decodeURIComponent(p[0])] = decodeURIComponent(p[1] || '');
   });
   var to = (q.to || location.hash.slice(1) || DEFAULT_TO).replace(/^https?:\/\//, '').replace(/\/+$/, '');
-  var target = 'http://' + to + '/probe.html';
+  var PATH = q.path || '/';   /* '/' is the creation; '/spikes/probe.html' is the milestone 0 probe */
+  var target = 'http://' + to + PATH;
   document.getElementById('host').textContent = target;
 
   function go(){

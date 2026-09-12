@@ -20,26 +20,24 @@ Name is a placeholder.
 
 ## Start here
 
-Milestone 0 tests whether the r1's webview will load a page over plain HTTP from the
-LAN. If it will not, the local architecture does not work and the plan changes before
-any code is written.
-
-The installer itself refuses an `http://` URL, so the install goes through
-`spikes/hop.html` on the HTTPS host (GitHub Pages, deployed from `main`), which
-navigates straight on to the Mac. `hop.html` therefore has to be on `main` before the
-test can run.
+Milestone 0 passed: the r1 webview loads a page and opens a websocket over plain HTTP
+on the LAN. The wrinkle is the installer, which only accepts an `https://` URL, so the
+install points at `spikes/hop/` on GitHub Pages (deployed from `main`), which navigates
+straight on to the Mac. The Mac's address is one constant in `spikes/hop/index.html`.
 
 ```
+pip3 install -r mac/requirements.txt
 python3 mac/serve.py
 ```
 
-That serves `spikes/` on port 8080, prints the Mac's LAN address, and answers the
-websocket at `/ws`, so all three lines on the probe can pass. Open the `install.html`
-address it prints in a browser on the Mac, scan the QR with the r1 camera, open the
-creation on the device, and read the lines on screen. The host logs every request, so
-the terminal shows what the device managed to reach even if the screen does not.
+That serves `r1/` on port 8080, prints the Mac's LAN address, answers the websocket at
+`/ws`, and reports what is in front. The probe stays at `/spikes/probe.html`. Open the
+`install.html` address it prints in a browser on the Mac and scan the QR with the r1
+camera; one install serves every milestone. The host logs every request and every
+change of foreground app.
 
-The host is standard library only; nothing to install for the spike.
+`mac/requirements.txt`: `pyobjc-framework-Cocoa`, for `NSWorkspace` (which app is in
+front). Nothing else yet.
 
 ## Repo layout once building starts
 

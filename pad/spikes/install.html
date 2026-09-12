@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>install probe</title>
+<title>install pad.</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <style>
 :root{--accent:#ff6b1a}
@@ -21,9 +21,9 @@ input{font:inherit;font-size:14px;background:#111;color:#F2F2EE;border:1px solid
 </style>
 </head>
 <body>
-<h1>probe</h1>
+<h1>pad.</h1>
 <div id="qr"></div>
-<p>open the r1 camera and scan to install. then open it on the device and read the lines.</p>
+<p>open the r1 camera and scan to install. the same install serves every milestone; only the page on the mac changes.</p>
 <p>installing: <code id="urlShow"></code></p>
 <p>which hops to: <code id="hopShow"></code></p>
 <p><label for="addr">mac on the lan</label><br><input id="addr" spellcheck="false"></p>
@@ -53,11 +53,11 @@ addr.value = (location.protocol === 'http:' && location.host) ? location.host : 
 function render(){
   var host = addr.value.trim().replace(/^https?:\/\//, '').replace(/\/+$/, '');
   var url = HOP + '?v=1';
-  document.getElementById('hopShow').textContent = 'http://' + host + '/probe.html (set in hop/index.html)';
+  document.getElementById('hopShow').textContent = 'http://' + host + '/ (set in hop/index.html)';
   var payload = JSON.stringify({
-    title: 'probe',
+    title: 'pad.',   /* placeholder name */
     url: url,
-    description: 'can the webview reach the lan over plain http?',
+    description: 'a control surface for the desktop, on the lan.',
     iconUrl: '',
     themeColor: '#ff6b1a'   /* placeholder; the pad accent is undecided */
   });

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=240, initial-scale=1.0, user-scalable=no">
+<title>pad.</title>
+<style>
+/* accent is undecided — one property, no literals elsewhere (docs/open-questions.md) */
+:root{--accent:#ff6b1a;--accent-dim:#5c2708;--paper:#e8e6de;--muted:#8a8780}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#000;width:240px;height:282px;overflow:hidden}
+body{font-family:"Power Grotesk",Inter,-apple-system,Helvetica,Arial,sans-serif;font-weight:300;color:var(--paper);
+  position:relative;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+.band{position:absolute;left:0;right:0;height:22px;padding:0 8px;display:flex;align-items:center;
+  justify-content:space-between;font-size:9px;letter-spacing:.06em}
+#top{top:0;color:var(--accent);border-bottom:1px solid var(--accent-dim)}
+#bot{bottom:0;color:var(--muted);border-top:1px solid var(--accent-dim)}
+#bot .linked{color:var(--accent)}
+#mid{position:absolute;left:12px;right:12px;top:22px;bottom:22px;display:flex;flex-direction:column;
+  justify-content:center;gap:6px}
+#name{font-size:22px;line-height:1.1;letter-spacing:-.01em;word-break:break-word}
+#app{font-size:11px;line-height:1.3;color:var(--muted);word-break:break-all}
+</style>
+</head>
+<body>
+<div id="top" class="band"><span id="title"></span><span id="host"></span></div>
+<div id="mid"><div id="name">—</div><div id="app"></div></div>
+<div id="bot" class="band"><span id="reason">connecting</span><span id="state">offline</span></div>
+
+<script>
+/* ==================================================================
+   pad. — milestone 1: context on screen (rabbit r1)
+   the mac says which application is in front; this shows it.
+   no keypad, no actions, no config. side button = leave.
+   the device holds no truth of its own: it draws what it is told.
+================================================================== */
+'use strict';
+var TITLE = 'pad.';   /* placeholder name — the one place the display string lives */
+document.getElementById('title').textContent = TITLE;
+document.getElementById('host').textContent = location.host;
+
+var $name = document.getElementById('name'), $app = document.getElementById('app'),
+    $state = document.getElementById('state'), $reason = document.getElementById('reason');
+
+function setStatus(state, reason){
+  $state.textContent = state;
+  $state.className = state === 'linked' ? 'linked' : '';
+  $reason.textContent = reason || '';
+}
+function setContext(m){
+  $name.textContent = m.name || m.app || '—';
+  $app.textContent = m.app || '';
+}
+function handle(m){
+  if (m.t === 'status') setStatus(m.state, m.reason);
+  else if (m.t === 'context') setContext(m);
+}
+
+/* one socket, reopened on drop with a backoff */
+var ws = null, backoff = 500;
+function connect(){
+  setStatus('offline', 'connecting');
+  ws = new WebSocket('ws://' + location.host + '/ws');
+  ws.onopen = function(){ backoff = 500; setStatus('offline', 'waiting for the mac'); };
+  ws.onmessage = function(e){ var m; try { m = JSON.parse(e.data); } catch (err) { return; } handle(m); };
+  ws.onclose = function(){
+    setStatus('offline', 'no host');
+    setTimeout(connect, backoff);
+    backoff = Math.min(backoff * 2, 8000);
+  };
+  ws.onerror = function(){ /* onclose follows */ };
+}
+connect();
+
+function leave(){ try { closeWebView.postMessage(''); } catch (e) {} }
+window.addEventListener('sideClick', leave);
+window.addEventListener('keydown', function(e){ if (e.key === 'Escape') leave(); });  /* desktop fallback */
+</script>
+</body>
+</html>

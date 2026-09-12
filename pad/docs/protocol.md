@@ -21,8 +21,11 @@ pairing code later it goes on top of this, not into it.
 Sent on connect and whenever the value changes. The r1 holds no truth of its own beyond
 which page it is showing and which continuous control is held.
 
-    {"t":"context", "app":"com.adobe.illustrator", "title":"schlep.svg", "url":null}
-    {"t":"context", "app":"com.google.Chrome", "title":"schlep.", "url":"http://localhost:5173/schlep"}
+    {"t":"context", "app":"com.adobe.illustrator", "name":"Adobe Illustrator", "title":"schlep.svg", "url":null}
+    {"t":"context", "app":"com.google.Chrome", "name":"Google Chrome", "title":"schlep.", "url":"http://localhost:5173/schlep"}
+
+`name` is the application's own display name, for the device to show while no pad
+matches. `title` and `url` are null until the milestones that read them.
 
     {"t":"pad", "id":"illustrator", "label":"illustrator", "pages":[ ...see config... ]}
 

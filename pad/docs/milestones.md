@@ -32,6 +32,12 @@ lands, the architecture holds with one permanent wrinkle: the install URL carrie
 Mac's LAN address, so a changed address means a rescan. If the device stays on the hop
 page, the webview refuses cleartext and the conversation above applies.
 
+**Result.** The installer also rejected an https URL with the address in the query
+string on a `.html` path; it accepted `…/pad/spikes/hop/?v=1`, the same shape as the
+other creations, with the address inside the hop. The hop landed and all three probe
+lines passed on the device. Cleartext HTTP and `ws://` work from the r1 webview.
+The install URL never needs to change again; the hop decides where it lands.
+
 ## 1 — Context on screen
 
 The Mac reports the foreground application; the r1 displays the bundle identifier as
