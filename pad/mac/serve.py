@@ -12,8 +12,9 @@ stays reachable under /spikes/.
 Binds 0.0.0.0 on purpose: the r1 is another device on the same network and has to
 reach this process. There is no authentication in this version (see docs/protocol.md).
 
-Milestone 2: one hard-coded pad. A press from the device becomes a keystroke; every
-executed action is logged with a timestamp. Nothing fires on connect or reconnect.
+Milestone 3: pads from config/keypads.json, resolved against what is in front. A
+press from the device becomes a keystroke; every executed action is logged with a
+timestamp. Nothing fires on connect, on pad change, or on reconnect.
 """
 import base64
 import hashlib
@@ -29,7 +30,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from context import ContextError, make_reader, pump  # noqa: E402
 from input import InputError, keystroke, trusted  # noqa: E402
-from pads import current_pad, slot_action, to_device  # noqa: E402
+from pads import Pads, slot_action, to_device  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -99,6 +100,7 @@ clients = set()
 clients_lock = threading.Lock()
 state = {"context": None, "pad": None,
          "status": {"t": "status", "state": "offline", "reason": "starting"}}
+pads = Pads()
 
 
 def broadcast(message):
@@ -116,13 +118,18 @@ def context_loop():
     the Cocoa run loop has to turn between reads or the answer never changes."""
     read = make_reader()
     while True:
+        reloaded = pads.refresh()
+        if reloaded:
+            log("config %d pads loaded" % len(pads.pads))
         try:
             context = read()
-            if trusted():
-                status = {"t": "status", "state": "linked"}
-            else:
+            if pads.error:
+                status = {"t": "status", "state": "offline", "reason": pads.error}
+            elif not trusted():
                 status = {"t": "status", "state": "offline",
                           "reason": "accessibility permission not granted"}
+            else:
+                status = {"t": "status", "state": "linked"}
         except ContextError as e:
             context = None
             status = {"t": "status", "state": "offline", "reason": str(e)}
@@ -134,11 +141,14 @@ def context_loop():
             state["context"] = context
             broadcast(context)
             log("front  %s (%s)" % (context["app"], context["name"]))
-            pad = current_pad(context)
+        if context is not None and (reloaded or context != state.get("resolved_for")):
+            state["resolved_for"] = context
+            pad = pads.resolve(context)
             if pad is not state["pad"]:
                 state["pad"] = pad
-                broadcast(to_device(pad))
-                log("pad    %s" % pad["id"])
+                if pad is not None:
+                    broadcast(to_device(pad))
+                    log("pad    %s" % pad["id"])
         pump(POLL_SECONDS)
 
 

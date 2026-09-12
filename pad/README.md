@@ -59,7 +59,9 @@ spikes/   throwaway tests
 ```
 
 `config/keypads.json` is the live file. `keypads.example.json` stays as the documented
-shape.
+shape. The host re-reads the live file whenever it changes on disk, so editing it in a
+text editor is the whole workflow; a file that will not load keeps the last good pads
+and says what is wrong in the device's bottom band.
 
 ## Known cost
 

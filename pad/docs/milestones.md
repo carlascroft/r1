@@ -60,6 +60,9 @@ Accessibility permission attaches to the process that posts the events, which fo
 Python script means granting it to Terminal. That is acceptable for now. Note it in the
 README and leave a `.app` wrapper for later.
 
+**Result.** The grid toggles in Illustrator and the tap feels immediate. Modifiers are
+posted as real key events around the main key; flag-only shortcuts were not tried.
+
 ## 3 — Config-driven pads
 
 Load `config/keypads.json`. Implement the context resolution order in

@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "pads": [
+    {
+      "id": "illustrator",
+      "label": "illustrator",
+      "app": "com.adobe.illustrator",
+      "pages": [
+        [
+          { "label": "grid",     "glyph": "grid",     "action": { "kind": "key", "keys": ["cmd", "'"] } },
+          { "label": "outline",  "glyph": "outline",  "action": { "kind": "key", "keys": ["cmd", "y"] } },
+          { "label": "blend",    "glyph": "blend",    "action": { "kind": "key", "keys": ["alt", "cmd", "b"] } },
+          { "label": "expand",   "glyph": "expand",   "action": null },
+          { "label": "join",     "glyph": "join",     "action": { "kind": "key", "keys": ["cmd", "j"] } },
+          { "label": "unite",    "glyph": "unite",    "action": null },
+          { "label": "artboard", "glyph": "artboard", "action": { "kind": "key", "keys": ["shift", "o"] } },
+          null,
+          { "label": "export svg", "glyph": "export", "action": { "kind": "key", "keys": ["alt", "cmd", "e"] } }
+        ]
+      ],
+      "controls": [
+        { "id": "stroke-weight", "label": "stroke weight", "unit": "pt", "step": 0.05, "min": 0, "max": 4 }
+      ]
+    },
+    {
+      "id": "schlep",
+      "label": "schlep.",
+      "match": "localhost:*/schlep*",
+      "pages": [
+        [
+          { "label": "reseed",   "glyph": "reseed", "action": { "kind": "http", "method": "POST", "url": "http://localhost:5173/api/reseed" } },
+          null, null,
+          null, null, null,
+          null, null,
+          { "label": "send", "glyph": "send", "action": { "kind": "http", "method": "POST", "url": "http://localhost:5000/api/send" } }
+        ]
+      ],
+      "controls": []
+    },
+    {
+      "id": "default",
+      "label": "desktop",
+      "pages": [[null, null, null, null, null, null, null, null, null]],
+      "controls": []
+    }
+  ]
+}
