@@ -23,23 +23,36 @@ input{font:inherit;font-size:14px;background:#111;color:#F2F2EE;border:1px solid
 <body>
 <h1>probe</h1>
 <div id="qr"></div>
-<p>open the r1 camera and scan to install. then open it on the device and read the three lines.</p>
+<p>open the r1 camera and scan to install. then open it on the device and read the lines.</p>
 <p>installing: <code id="urlShow"></code></p>
-<p><label for="addr">served from</label><br><input id="addr" spellcheck="false"></p>
+<p>which hops to: <code id="hopShow"></code></p>
+<p><label for="addr">mac on the lan</label><br><input id="addr" spellcheck="false"></p>
 
 <script>
 /* ==========================================================
    milestone 0 — install QR for spikes/probe.html.
+
+   the r1 installer rejects an http:// url outright ("invalid
+   creation code"), so the QR points at hop.html on the https
+   host that serves the other creations, with the mac's lan
+   address in the query string. hop.html then navigates to
+   http://<mac>/probe.html. this only works once hop.html is
+   on main, because that is what github pages deploys.
+
    when this page is served by mac/serve.py the address below
    is filled from location.host, so nothing needs typing.
    opened from disk (file://) it falls back to an editable
    host:port — put the mac's lan address there.
 ========================================================== */
+var HOP = 'https://carlascroft.github.io/r1/pad/spikes/hop.html';
+
 var addr = document.getElementById('addr');
 addr.value = (location.protocol === 'http:' && location.host) ? location.host : '192.168.0.0:8080';
 
 function render(){
-  var url = 'http://' + addr.value.trim().replace(/\/+$/, '') + '/probe.html?v=1';
+  var host = addr.value.trim().replace(/^https?:\/\//, '').replace(/\/+$/, '');
+  var url = HOP + '?to=' + encodeURIComponent(host) + '&v=1';
+  document.getElementById('hopShow').textContent = 'http://' + host + '/probe.html';
   var payload = JSON.stringify({
     title: 'probe',
     url: url,

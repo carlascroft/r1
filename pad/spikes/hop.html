@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=240,height=282,initial-scale=1">
+<title>hop</title>
+<style>
+  html,body{margin:0;padding:0;background:#0a0a0a;color:#e8e6de;
+    font-family:'Power Grotesk',Inter,-apple-system,sans-serif;font-weight:300}
+  body{width:240px;height:282px;padding:10px;font-size:11px;line-height:1.5;box-sizing:border-box;
+    -webkit-user-select:none;user-select:none}
+  h1{font-size:11px;font-weight:300;color:#ff6b1a;margin:0 0 10px;
+    border-bottom:1px solid #5c2708;padding-bottom:6px;letter-spacing:0.06em}
+  .row{display:flex;gap:6px;margin-bottom:8px;align-items:flex-start}
+  .box{width:9px;height:9px;flex:0 0 9px;border:1px solid #5c2708;margin-top:2px}
+  .box.ok{background:#ff6b1a;border-color:#ff6b1a}
+  .box.no{background:#5c2708;border-color:#5c2708}
+  .t{flex:1}
+  .d{color:#8a8780;font-size:9px;word-break:break-all}
+  #host{position:absolute;bottom:10px;left:10px;right:10px;font-size:9px;color:#8a8780;
+    border-top:1px solid #5c2708;padding-top:6px}
+</style>
+</head>
+<body>
+<h1>cleartext hop</h1>
+
+<div class="row"><div class="box ok"></div><div class="t">installed over https<div class="d">the installer only accepts https urls</div></div></div>
+<div class="row"><div class="box" id="b2"></div><div class="t">leaving for http<div class="d" id="d2">…</div></div></div>
+
+<div id="host"></div>
+
+<script>
+  /* milestone 0, step one.
+     rabbitOS refuses an install QR whose url is http://, so the probe cannot be
+     installed directly from the mac. this page is served over https (github pages)
+     and its only job is to navigate to the http address on the lan. a top-level
+     navigation from https to http is not mixed content in a browser, so if the
+     webview allows cleartext at all, this is where it shows. if you are still
+     reading this after a few seconds, it refused. */
+  var q = {};
+  location.search.slice(1).split('&').forEach(function(kv){
+    var p = kv.split('='); if (p[0]) q[decodeURIComponent(p[0])] = decodeURIComponent(p[1] || '');
+  });
+  var to = (q.to || '').replace(/^https?:\/\//, '').replace(/\/+$/, '');
+  var target = 'http://' + to + '/probe.html';
+  document.getElementById('host').textContent = to ? target : 'no ?to=host:port in the install url';
+
+  function go(){
+    if (!to) { mark(false, 'nothing to hop to'); return; }
+    document.getElementById('d2').textContent = 'navigating…';
+    try { location.replace(target); }
+    catch (e) { mark(false, 'blocked: ' + e.message); return; }
+    setTimeout(function(){ mark(false, 'still here after 4s — the webview refused to leave https for http. tap to retry.'); }, 4000);
+  }
+  function mark(ok, msg){
+    document.getElementById('b2').className = 'box ' + (ok ? 'ok' : 'no');
+    document.getElementById('d2').textContent = msg;
+  }
+  window.addEventListener('pointerdown', go);   /* never touchstart + preventDefault on this webview */
+  go();
+</script>
+</body>
+</html>

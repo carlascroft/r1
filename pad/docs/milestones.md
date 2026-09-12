@@ -22,6 +22,16 @@ If it fails at the first line, stop and tell Carl. The fallback options are a lo
 trusted certificate, or tunnelling, or accepting a relay — all of them are worse and one
 of them contradicts the brief, so that is a conversation, not a decision you make.
 
+**Finding, first attempt.** The r1 installer rejects a QR whose `url` is `http://`
+("invalid creation code") before the webview loads anything. The community tips confirm
+the install URL must be HTTPS. So the install has to go through `spikes/hop.html`, served
+over HTTPS from the same GitHub Pages host as the other creations, which then navigates
+to `http://<mac-ip>:8080/probe.html`. A top-level navigation from https to http is not
+mixed content in a browser, so the hop is where cleartext permission shows itself. If it
+lands, the architecture holds with one permanent wrinkle: the install URL carries the
+Mac's LAN address, so a changed address means a rescan. If the device stays on the hop
+page, the webview refuses cleartext and the conversation above applies.
+
 ## 1 — Context on screen
 
 The Mac reports the foreground application; the r1 displays the bundle identifier as

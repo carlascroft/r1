@@ -24,6 +24,11 @@ Milestone 0 tests whether the r1's webview will load a page over plain HTTP from
 LAN. If it will not, the local architecture does not work and the plan changes before
 any code is written.
 
+The installer itself refuses an `http://` URL, so the install goes through
+`spikes/hop.html` on the HTTPS host (GitHub Pages, deployed from `main`), which
+navigates straight on to the Mac. `hop.html` therefore has to be on `main` before the
+test can run.
+
 ```
 python3 mac/serve.py
 ```
@@ -31,9 +36,8 @@ python3 mac/serve.py
 That serves `spikes/` on port 8080, prints the Mac's LAN address, and answers the
 websocket at `/ws`, so all three lines on the probe can pass. Open the `install.html`
 address it prints in a browser on the Mac, scan the QR with the r1 camera, open the
-creation on the device, and read the three lines on screen. The host logs every
-request, so the terminal shows what the device managed to reach even if the screen
-does not.
+creation on the device, and read the lines on screen. The host logs every request, so
+the terminal shows what the device managed to reach even if the screen does not.
 
 The host is standard library only; nothing to install for the spike.
 
