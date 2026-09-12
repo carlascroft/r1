@@ -33,30 +33,31 @@ input{font:inherit;font-size:14px;background:#111;color:#F2F2EE;border:1px solid
    milestone 0 — install QR for spikes/probe.html.
 
    the r1 installer rejects an http:// url outright ("invalid
-   creation code"), so the QR points at hop.html on the https
-   host that serves the other creations, with the mac's lan
-   address in the query string. hop.html then navigates to
-   http://<mac>/probe.html. this only works once hop.html is
-   on main, because that is what github pages deploys.
+   creation code"), and also rejected an https url with the
+   mac's address in the query string. so the QR points at the
+   hop folder on the https host in exactly the shape the other
+   creations use, and the mac's address is set inside
+   hop/index.html (DEFAULT_TO). the hop then navigates to
+   http://<mac>/probe.html. this only works once the hop is on
+   main, because that is what github pages deploys.
 
-   when this page is served by mac/serve.py the address below
-   is filled from location.host, so nothing needs typing.
-   opened from disk (file://) it falls back to an editable
-   host:port — put the mac's lan address there.
+   the address shown below is what hop/index.html will use;
+   if it differs from the one this page was served from, the
+   DEFAULT_TO in hop/index.html needs editing and pushing.
 ========================================================== */
-var HOP = 'https://carlascroft.github.io/r1/pad/spikes/hop.html';
+var HOP = 'https://carlascroft.github.io/r1/pad/spikes/hop/';
 
 var addr = document.getElementById('addr');
 addr.value = (location.protocol === 'http:' && location.host) ? location.host : '192.168.0.0:8080';
 
 function render(){
   var host = addr.value.trim().replace(/^https?:\/\//, '').replace(/\/+$/, '');
-  var url = HOP + '?to=' + encodeURIComponent(host) + '&v=1';
-  document.getElementById('hopShow').textContent = 'http://' + host + '/probe.html';
+  var url = HOP + '?v=1';
+  document.getElementById('hopShow').textContent = 'http://' + host + '/probe.html (set in hop/index.html)';
   var payload = JSON.stringify({
     title: 'probe',
     url: url,
-    description: 'pad. milestone 0 — can the webview reach the lan over plain http?',
+    description: 'can the webview reach the lan over plain http?',
     iconUrl: '',
     themeColor: '#ff6b1a'   /* placeholder; the pad accent is undecided */
   });

@@ -36,14 +36,21 @@
      and its only job is to navigate to the http address on the lan. a top-level
      navigation from https to http is not mixed content in a browser, so if the
      webview allows cleartext at all, this is where it shows. if you are still
-     reading this after a few seconds, it refused. */
+     reading this after a few seconds, it refused.
+
+     the installer also rejected an https url carrying ?to=host%3Aport on a .html
+     path, so the install url is kept in exactly the shape that works for the other
+     creations (a folder plus ?v=1) and the mac's address lives here instead.
+     a ?to= or #host:port still overrides it if the device turns out to accept one. */
+  var DEFAULT_TO = '192.168.68.117:8080';   /* the mac on the lan — edit when it changes */
+
   var q = {};
   location.search.slice(1).split('&').forEach(function(kv){
     var p = kv.split('='); if (p[0]) q[decodeURIComponent(p[0])] = decodeURIComponent(p[1] || '');
   });
-  var to = (q.to || '').replace(/^https?:\/\//, '').replace(/\/+$/, '');
+  var to = (q.to || location.hash.slice(1) || DEFAULT_TO).replace(/^https?:\/\//, '').replace(/\/+$/, '');
   var target = 'http://' + to + '/probe.html';
-  document.getElementById('host').textContent = to ? target : 'no ?to=host:port in the install url';
+  document.getElementById('host').textContent = target;
 
   function go(){
     if (!to) { mark(false, 'nothing to hop to'); return; }
