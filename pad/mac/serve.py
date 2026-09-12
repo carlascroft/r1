@@ -26,7 +26,7 @@ import time
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from context import ContextError, make_reader  # noqa: E402
+from context import ContextError, make_reader, pump  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -108,7 +108,8 @@ def broadcast(message):
 
 
 def context_loop():
-    """Poll what is in front; tell the devices only when it changes."""
+    """Poll what is in front; tell the devices only when it changes. Main thread:
+    the Cocoa run loop has to turn between reads or the answer never changes."""
     read = make_reader()
     while True:
         try:
@@ -125,7 +126,7 @@ def context_loop():
             state["context"] = context
             broadcast(context)
             log("front  %s (%s)" % (context["app"], context["name"]))
-        time.sleep(POLL_SECONDS)
+        pump(POLL_SECONDS)
 
 
 # ---------- http + websocket ----------
@@ -227,9 +228,11 @@ def main():
     print("socket    ws://%s:%d/ws" % (ip, port))
     print("ctrl-c to stop")
     print()
-    threading.Thread(target=context_loop, name="context", daemon=True).start()
+    # The http server lives on a thread; the context loop owns the main thread
+    # because that is where the Cocoa run loop is.
+    threading.Thread(target=server.serve_forever, name="http", daemon=True).start()
     try:
-        server.serve_forever()
+        context_loop()
     except KeyboardInterrupt:
         print("\nstopped")
 
